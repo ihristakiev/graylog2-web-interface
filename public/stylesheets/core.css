@@ -43,7 +43,7 @@ h4 {
 }
 
 a {
-    color: #fd0c99;
+    color: #009D00;
     text-decoration: none;
 }
 
@@ -101,7 +101,7 @@ label {
 }
 
 .highlighted {
-    color: #fd0c99;
+    color: #009D00;
 }
 
 .light {
@@ -214,7 +214,7 @@ label {
 
 #userbar {
     float: right;
-    background-color: #fd0c99;
+    background-color: #009D00;
     background-image: url(../images/userbar.png);
     background-repeat: no-repeat;
     padding: 3px;
@@ -252,11 +252,11 @@ label {
 }
 
 #topmenu a:hover {
-    color: #fd0c99;
+    color: #009D00;
 }
 
 .topmenu-active {
-   background-color: #fd0c99;
+   background-color: #009D00;
 }
 
 .topmenu-active a:hover {
@@ -451,7 +451,7 @@ label {
 }
 
 .ac_over {
-    background-color: #fd0c99;
+    background-color: #009D00;
     color: white;
 }
 

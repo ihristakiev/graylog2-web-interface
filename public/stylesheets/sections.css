@@ -16,7 +16,7 @@
     top: -15px;
     margin: 0px auto;
     text-align: center;
-    background-color: #FD0C99;
+    background-color: #009D00;
     font-size: 10px;
     color: #fff;
     cursor: pointer;
@@ -206,7 +206,7 @@
 
 .stream-title {
     font-size: 25px;
-    color: #fd0c99;
+    color: #009D00;
 }
 
 #streams-alerts-limit {
@@ -313,7 +313,7 @@
 }
 
 .streams-forwarders-forwarder-title {
-  color: #FD0C99;
+  color: #009D00;
 }
 
 .streams-forwarders-forwarder-details {
@@ -374,7 +374,7 @@
 }
 
 .statistics-number {
-    color: #FD0C99;
+    color: #009D00;
 }
 
 .statistics-title {
@@ -522,7 +522,7 @@
 }
 
 .health-numbers-number-highlighted {
-  color: #FD0C99;
+  color: #009D00;
 }
 
 .health-numbers-number-as-text {
@@ -613,7 +613,7 @@
 
 .blocks-title {
     font-size: 25px;
-    color: #fd0c99;
+    color: #009D00;
 }
 
 .blocks-termslist {
@@ -636,7 +636,7 @@
     float: left;
     margin-right: 15px;
    font-size: 15px;
-    color: #fd0c99;
+    color: #009D00;
 }
 
 .blocks-terms-delete {

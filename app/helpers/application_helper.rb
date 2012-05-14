@@ -91,7 +91,7 @@ module ApplicationHelper
       function plot(data){
         $.plot($('#{options[:inject]}'),
           [ {
-              color: '#fd0c99',
+              color: '#009D00',
               shadowSize: 10,
               data: data,
               points: { show: false, },
