@@ -268,7 +268,40 @@ $(document).ready(function(){
       $("#messages-quickfilter-fields").append(field);
       return false;
     })
-
+    
+    // DateTimePickers    
+	var maxDate = new Date();
+	maxDate.setHours(23);
+	maxDate.setMinutes(59);
+	maxDate.setSeconds(59);
+	maxDate.setMilliseconds(999);
+	
+	// If the local date is not equal to the UTC date, add or subtract 1.
+	maxDate.setDate(maxDate.getUTCDate());
+    
+	var dtpOptions = {
+		showSecond: true,
+		dateFormat: "yy-mm-dd",
+		timeFormat: "hh:mm:ss",
+		maxDate: maxDate
+	};
+	var dtp_now = new Date();
+	var dtp_1hourAgo = new Date(dtp_now.getTime() - 3600000);	 //1 hour ago
+//	var dtp_10minAgo = new Date(dtp_now.getTime() -  600000);	 //10 min ago
+	
+	// Due to refresh issues, set a default value only if one is already not there
+	if ($("#filters_from").val() === "")
+	{
+		$("#filters_from").val(dtp_1hourAgo.toUTCDateTimeString());
+	}
+	if ($("#filters_to").val() === "")
+	{
+		$("#filters_to").val(dtp_now.toUTCDateTimeString());
+	}
+	
+	$("#filters_from").datetimepicker(dtpOptions);
+	$("#filters_to").datetimepicker(dtpOptions);
+	
     // Key bindings.
     //standardMapKeyOptions = { overlayClose:true }
     //$.mapKey("s", function() { $("#modal-stream-chooser").modal(standardMapKeyOptions); });

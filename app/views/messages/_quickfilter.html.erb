@@ -4,8 +4,15 @@
     <dt><%= label_tag "filters[:message]", "Message:" %></dt>
     <dd><%= text_field_tag "filters[message]", params[:filters].blank? ? nil : params[:filters][:message] %> <%=raw tooltip("Message-search-syntax") %></dd>
 
-    <dt><%= label_tag "filters[date]", "Timeframe:" %></dt>
-    <dd><%= text_field_tag "filters[date]", params[:filters].blank? ? nil : params[:filters][:date] %> <%=raw tooltip("Timeframe-Filters") %></dd>
+    <!--dt><%= label_tag "filters[date]", "Timeframe:" %></dt>
+    <dd><%= text_field_tag "filters[date]", params[:filters].blank? ? nil : params[:filters][:date] %> <%=raw tooltip("Timeframe-Filters") %></dd-->
+	
+    <dt><%= label_tag "filters[from]", "From:" %></dt>
+    <dd><%= text_field_tag "filters[from]", params[:filters].blank? ? nil : params[:filters][:from] %></dd>
+   
+    <dt><%= label_tag "filters[to]", "To:" %></dt>
+    <dd><%= text_field_tag "filters[to]", params[:filters].blank? ? nil : params[:filters][:to] %></dd>
+		
 
     <dt><%= label_tag "filters[facility]", "Facility:" %></dt>
     <dd><%= text_field_tag "filters[facility]", params[:filters].blank? ? nil : params[:filters][:facility] %></dd>

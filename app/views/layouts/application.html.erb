@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>
@@ -8,6 +8,8 @@
   <%= csrf_meta_tag %>
   <%= stylesheet_link_tag "reset" %>
   <%= stylesheet_link_tag "jquery.gritter" %>
+  <%= stylesheet_link_tag "jquery.ui.all" %>
+  <%= stylesheet_link_tag "jquery-ui-timepicker-addon" %>
   <%= stylesheet_link_tag "core" %>
   <%= stylesheet_link_tag "sections" %>
   <%= stylesheet_link_tag "messages" %>
@@ -20,6 +22,13 @@
   <%= javascript_include_tag "jquery.simplemodal.min" %>
   <%= javascript_include_tag "jquery.sparkline.min" %>
   <%= javascript_include_tag "jquery.gritter.min" %>
+  <%= javascript_include_tag "jquery-ui-1.8.11.custom" %>
+  <%= javascript_include_tag "jquery.ui.core.min" %>
+  <%= javascript_include_tag "jquery.ui.datepicker.min" %>
+  <%= javascript_include_tag "jquery.ui.mouse.min" %>
+  <%= javascript_include_tag "jquery.ui.slider.min" %>
+  <%= javascript_include_tag "jquery.ui.widget.min" %>
+  <%= javascript_include_tag "jquery-ui-timepicker-addon" %>
   <%= javascript_include_tag("jit") if @load_jit %>
   <% if @load_flot %>
     <%= javascript_include_tag("jquery.flot.min") %>
@@ -30,6 +39,7 @@
   <%= javascript_include_tag "application" %>
   <%= javascript_include_tag "shell" if @has_shell %>
   <%= javascript_include_tag "rails" %>
+  <%= javascript_include_tag "extensions" %>
 </head>
 <body>
   <%= javascript_tag("var relative_url_root = '#{controller.config.relative_url_root}';") %>
