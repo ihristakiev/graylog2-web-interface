@@ -129,10 +129,15 @@ class MessageGateway
           end
       
           # Timeframe.
-          if !filters[:date].blank?
-            range = Quickfilter.get_conditions_timeframe(filters[:date])
-            must { range(:created_at, :gt => range[:greater], :lt => range[:lower]) }
-          end
+          from = DateTime::parse(filters[:from]).to_time.to_i unless filters[:from].blank?
+          to = DateTime::parse(filters[:to]).to_time.to_i unless filters[:to].blank?
+          
+          must { range(:created_at, :gt => from, :lt => to) }
+          
+          #if !filters[:date].blank?
+          #  range = Quickfilter.get_conditions_timeframe(filters[:date])
+          #  must { range(:created_at, :gt => range[:greater], :lt => range[:lower]) }
+          #end
           
           unless opts[:hostname].blank?
             must { term(:host, opts[:hostname]) }
