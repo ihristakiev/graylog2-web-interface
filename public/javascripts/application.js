@@ -4,6 +4,8 @@ $(document).ajaxSend(function(e, xhr, options) {
 });
 
 $(document).ready(function(){
+	
+    var login_name = $("#login").html();
 
     // Hide notifications after some time.
     setInterval(function() {
@@ -65,24 +67,6 @@ $(document).ready(function(){
     // Stream Quick chooser
     $('#favoritestreamchooser_id').bind('change', function() {
        window.location = "/streams/show/" + parseInt(this.value);
-    });
-
-    // Quickfilter
-    $('#messages-show-quickfilter').bind('click', function() {
-        var showLink = $('#messages-show-quickfilter');
-        if (showLink.hasClass('messages-show-quickfilter-expanded')) {
-            // Quickfilter is expanded. Small down on click.
-            showLink.removeClass('messages-show-quickfilter-expanded');
-
-            // Hide quickfilters.
-            $('#messages-quickfilter').hide();
-        } else {
-            // Quickfilter is not expanded. Expand on click.
-            showLink.addClass('messages-show-quickfilter-expanded');
-
-            // Show quickfilters.
-            $('#messages-quickfilter').fadeIn(800);
-        }
     });
 
     // Full message view resizing.
@@ -267,7 +251,9 @@ $(document).ready(function(){
 
       $("#messages-quickfilter-fields").append(field);
       return false;
-    })
+    });
+    
+
     
     // DateTimePickers    
 	var maxDate = new Date();
@@ -290,49 +276,366 @@ $(document).ready(function(){
 //	var dtp_10minAgo = new Date(dtp_now.getTime() -  600000);	 //10 min ago
 	
 	// Due to refresh issues, set a default value only if one is already not there
-	if ($("#filters_from").val() === "")
+	if ($("#filters_jump_to").val() === "")
 	{
-		$("#filters_from").val(dtp_1hourAgo.toUTCDateTimeString());
+		$("#filters_jump_to").val(dtp_1hourAgo.toUTCDateTimeString());
 	}
-	if ($("#filters_to").val() === "")
-	{
-		$("#filters_to").val(dtp_now.toUTCDateTimeString());
-	}
+//	if ($("#filters_to").val() === "")
+//	{
+//		$("#filters_to").val(dtp_now.toUTCDateTimeString());
+//	}
 	
-	$("#filters_from").datetimepicker(dtpOptions);
-	$("#filters_to").datetimepicker(dtpOptions);
+	$("#filters_jump_to").datetimepicker(dtpOptions);
+//	$("#filters_to").datetimepicker(dtpOptions);
 	
     // Key bindings.
     //standardMapKeyOptions = { overlayClose:true }
     //$.mapKey("s", function() { $("#modal-stream-chooser").modal(standardMapKeyOptions); });
     //$.mapKey("h", function() { $("#modal-host-chooser").modal(standardMapKeyOptions); });
   
-    setInterval(function(){
-      // Update current throughput every 5 seconds
-      $.post("/health/currentthroughput", function(data) {
-        json = eval('(' + data + ')');
-        count = $(".health-throughput-current");
-        count.html(json.count);
-        count.fadeOut(200, function() {
-          count.fadeIn(200);
-        });
-      });
-  
-      // Update message queue size every 5 seconds
-      $.post("/health/currentmqsize", function(data) {
-        mqjson = eval('(' + data + ')');
-        mqcount = $(".health-mqsize-current");
-        mqcount.html(mqjson.count);
-        mqcount.fadeOut(200, function() {
-          mqcount.fadeIn(200);
-        });
-      });
-    }, 5000);
+//    setInterval(function(){
+//      // Update current throughput every 5 seconds
+//      $.post("/health/currentthroughput", function(data) {
+//        json = eval('(' + data + ')');
+//        count = $(".health-throughput-current");
+//        count.html(json.count);
+//        count.fadeOut(200, function() {
+//          count.fadeIn(200);
+//        });
+//      });
+//  
+//      // Update message queue size every 5 seconds
+//      $.post("/health/currentmqsize", function(data) {
+//        mqjson = eval('(' + data + ')');
+//        mqcount = $(".health-mqsize-current");
+//        mqcount.html(mqjson.count);
+//        mqcount.fadeOut(200, function() {
+//          mqcount.fadeIn(200);
+//        });
+//      });
+//    }, 5000);
+    
+    /*
+     * Hide next-page and last-page links, instead use AJAX when bottom is reached
+     */
+    $(".next-page").hide();
+    $(".previous-page").hide();
+
+    $("#main-right").hide();
+    $("#main-left").css("width", '100%');
+    
+    /*
+	 * Server-push
+	 */    
+	var jug = new Juggernaut({
+		port : 3001
+	});    
+	var pushHandler = function(data) {
+		data = JSON.parse(data);
+		for (i in data)
+		{
+			prependMessage(data[data.length - i - 1]);	// invert order of block (sorts it by created_at asc)
+		}
+		// Refresh links to messages
+	    bindMessageSidebarClicks();
+	};   
+
+	jug.subscribe(login_name, pushHandler);
+	subscribed = true;
+   
+	/*
+	 * Toggle button
+	 */
+    $(".toggle-liveview").bind("click", function() {
+      if ($(this).hasClass("active")) {
+    	 // Pause server-push 
+    	 jug.unsubscribe(login_name);
+    	  
+    	// housekeeping
+        $(this).removeClass("active");
+        $(this).attr("src", "/images/icons/sun.png");
+      } else {
+    	// Resume server-push  
+    	jug.subscribe(login_name, pushHandler);
+    	  
+    	// housekeeping
+        $(this).attr("src", "/images/icons/sun_active.png");
+        $(this).addClass("active");
+      }
+    });
+    
+    // Clear filters
+    $("#clear-quickfilter").bind("click", function() {
+    	// Set to default fields
+    	$("#filters_message").val("");
+    	$("#filters_facility").val("");
+    	$("#filters_host").val("");
+    	$("#filters_severity").val("");
+    	$("#filters_severity_above").attr('checked', false);
+    	
+    	// Clear filters on server as well
+    	$("#apply-quickfilter").click();
+    	
+    	// prevent the click on the link from propagating
+    	return false;
+    });
+	
+    // Apply filter.
+    $("#apply-quickfilter").bind("click", function() {
+    	// Notify server via AJAX
+    	message = $("#filters_message").val();
+    	facility = $("#filters_facility").val();
+    	host = $("#filters_host").val();
+    	severity = $("#filters_severity").val();
+    	severity_above = $("#filters_severity_above").attr('checked');
+    	
+    	href =    "/messages?filters[message]=" + message +
+					       "&filters[facility]=" + facility +
+					       "&filters[host]=" + host +
+					       "&filters[severity]=" + severity +
+					       "&filters[severity_above]=" + severity_above +
+					       "&login=" + login_name ;
+    	
+    	$.get(href + "&applyFilter=true&page=1", 
+    		 function(data){
+    		 // Clear old table
+    		 $("#messages-tbody").children().remove();
+    		 
+    		 // Populate table with new content
+    		 data = JSON.parse(data);
+    		 for (i in data)
+			 {
+    			 appendMessage(data[i]);
+			 }
+    		 
+    		 // Update scroll-down link
+    		 $(".next-page").attr("href", href + "&page=2");
+    	});
+
+		// Refresh links to messages
+	    bindMessageSidebarClicks();
+    	// prevent the click on the link from propagating
+    	return false;
+    });	
+    
+    // Jump to
+    $("#apply_quickfilter_jump_to").bind("click", function() {
+    	message = $("#filters_message").val();
+    	facility = $("#filters_facility").val();
+    	host = $("#filters_host").val();
+    	severity = $("#filters_severity").val();
+    	severity_above = $("#filters_severity_above").is(':checked');  
+    	
+    	to = $("#filters_jump_to").val();
+    	
+    	href =    "/messages?filters[message]=" + message +
+					       "&filters[facility]=" + facility +
+					       "&filters[host]=" + host +
+					       "&filters[severity]=" + severity +
+					       "&filters[severity_above]=" + severity_above +
+					       "&filters[to]=" + to +
+					       "&login=" + login_name ; 
+    	
+    	$.get(href + "&applyFilter=true&page=1", 
+       		 function(data){
+       		 // Clear old table
+       		 $("#messages-tbody").children().remove();
+       		 
+       		 // Populate table with new content
+       		 data = JSON.parse(data);
+       		 for (i in data)
+   			 {
+       			 appendMessage(data[i]);
+   			 }
+       		 
+       		 // Update scroll-down link
+       		 $(".next-page").attr("href", href + "&page=2");
+
+     		// Refresh links to messages
+     	    bindMessageSidebarClicks();
+       	});
+    	
+    	// prevent the click on the link from propagating
+       	return false;
+    	
+    });
+    
+    // Quickfilter
+    $('#messages-show-quickfilter').bind('click', function() {
+        var showLink = $('#messages-show-quickfilter');
+        if (showLink.hasClass('messages-show-quickfilter-expanded')) {
+            // Quickfilter is expanded. Small down on click.
+            showLink.removeClass('messages-show-quickfilter-expanded');
+
+            // Hide quickfilters.
+            $('#messages-quickfilter').hide();
+            $('#quickfilter_jump_to').hide();
+            
+            // Resume live-view
+       	 	if (!subscribed) {
+       	 		jug.subscribe(login_name, pushHandler);
+       	 		subscribed = true;
+       	 	}
+            
+            
+        } else {
+            // Quickfilter is not expanded. Expand on click.
+            showLink.addClass('messages-show-quickfilter-expanded');
+
+            // Show quickfilters.
+            $('#messages-quickfilter').fadeIn(800);
+            $('#quickfilter_jump_to').fadeIn(800);
+            
+
+            // Stop live-view
+       	 	if (subscribed) {
+       	 		jug.unsubscribe(login_name);
+       	 		subscribed = false;
+       	 	}
+        }
+    });
+	
+    /*
+     * AJAX
+     */
+    var next_exists = true;
+
+	var ajaxHandler = function(data) {
+		data = JSON.parse(data);
+		if (data.length == 0) {
+			next_exists = false;
+			return; // stop if no data returned
+		}
+		next_exists = true;
+		for (i in data)
+			{
+				appendMessage(data[i]);	// invert order of block (sorts it by created_at asc)
+			}
+		// update link to next page
+	   href = $(".next-page").attr("href");
+	   if (href === undefined) return;
+	   page = parseInt(/.page=(\d)+.*/g.exec(href)[1]); // String-> int
+	   $(".next-page").attr("href", href.replace(new RegExp("page="+page), "page=" + (page+1)) );
+	   
+
+		// Refresh links to messages
+	    bindMessageSidebarClicks();
+	};
+    
+    // Get more data if we reach bottom
+    // http://stackoverflow.com/questions/3898130/how-to-check-if-a-user-has-scrolled-to-the-bottom
+    $(window).scroll(function() {
+    	if($(window).scrollTop() + $(window).height() > $(document).height() - 10) {
+			href = $(".next-page").attr("href");
+		    if (href === undefined) return;
+			if (!next_exists)
+			{		
+				// Modify request for even further historical data
+				///.*from.{0,5}=(.*)&filters.{0,5}host.*&filters.{0,5}to.{0,5}=(.*)&page.*$/.exec($(".next-page").attr("href"))
+				return;
+			}    		
+			// Bottom reached, do AJAX
+			$.get(href + "&onlyData=true", ajaxHandler);	
+	   }
+    });
+    
+    // Jump Up and Jump Down buttons
+    $(".jump_up").bind("click", function(){
+    	$.get("/messages?login=" + login_name + "&jumpUp=true",
+    		   function(data){
+					new_to = parseFloat(data); // String-> Float
+					if (new_to == 0) return;
+					href = "/messages?login=" + login_name +
+							        "&to=" + new_to +
+				    			    "&jumpUp=false";
+					ajax_helper(data, href);
+    	});
+    	
+    	return false;
+    });
+    
+    $(".jump_down").bind("click", function(){
+		href = $(".next-page").attr("href");
+	    if (href === undefined) return;
+		if (!next_exists)
+		{		
+			// Modify request for even further historical data
+			///.*from.{0,5}=(.*)&filters.{0,5}host.*&filters.{0,5}to.{0,5}=(.*)&page.*$/.exec($(".next-page").attr("href"))
+		}    		
+		
+		$.get(href + "&onlyData=true", ajaxHandler);	
+		
+    	return false;
+    });
+    
 });
 
+function buildHTMLMessageFrom(message) {
+	return "<tr id=" + message.id + " class=\"message-row\">"
+				+ "<td>" + new Date(message.created_at * 1000).toUTCDateTimeString(false, true) + "</td>" 
+				+ "<td>" + message.host + "</td>" 
+				+ "<td>"+ syslog_level_to_human(message.level) + "</td>"
+				+ "<td>" + message.facility + "</td>"
+				+ "<td colspan=\"2\">" + message.message + "</td>"
+				+ "</tr>";
+};
+
+function prependMessage(message) {
+	$("#messages-tbody").prepend(buildHTMLMessageFrom(message));
+};
+
+function appendMessage(message) {
+	$("#messages-tbody").append(buildHTMLMessageFrom(message));
+};
+
+function syslog_level_to_human(level) {
+	if (level == null)
+		return "None"
+	switch (level) {
+	case 0:
+		return "Emerg";
+	case 1:
+		return "Alert";
+	case 2:
+		return "Crit";
+	case 3:
+		return "Error";
+	case 4:
+		return "Warn";
+	case 5:
+		return "Notice";
+	case 6:
+		return "Info";
+	case 7:
+		return "Debug";
+	default:
+		return "Invalid";
+	}
+};
+
+function ajax_helper(newdata, href) {
+	$.get( href + "&page=1",    						
+			function(data1){
+       		 // Clear old table
+       		 $("#messages-tbody").children().remove();
+       		 // Populate table with new content
+       		 data = JSON.parse(data1);
+       		 for (i in data)
+   			 {
+       			 appendMessage(data[i]);
+   			 }
+
+       		 // Update scroll-down link
+       		 $(".next-page").attr("href", href + "&page=2");	
+
+     		// Refresh links to messages
+     	    bindMessageSidebarClicks();
+	});
+};
+    
 function buildHostCssId(id) {
   return "visuals-spread-hosts-" + id.replace(/=/g, '');
-}
+};
 
 function bindMessageSidebarClicks() {
   $(".message-row").bind("click", function() {
@@ -350,25 +653,22 @@ function bindMessageSidebarClicks() {
 
       // Show sidebar if hidden.
       if (!$("#main-right").is(":visible")) {
-        $("#main-left").animate({ width: '65%' }, 700, function() {
-          // Show sidebar when main body is completely squeezed.
           $("#main-right").show();
-        });
       }
 
       $("#gln").hide();
     });
   });
-}
+};
 
 // srsly, javascript... - http://stackoverflow.com/questions/1219860/javascript-jquery-html-encoding
 function htmlEncode(v) {
   return $('<div/>').text(v).html();
-}
+};
 
 function notify(what) {
   $.gritter.add({
     title: "Notification",
     text: what
   })
-}
+};

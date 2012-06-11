@@ -28,9 +28,18 @@
 
 #messages-quickfilter {
     margin-top: 15px;
+    margin-bottom: 15px;
+    width: 35%;
+    float: left;
 }
 
 #messages-quickfilter-fields label {
+    font-size: 14px;
+    font-weight: normal;
+    font-family: Georgia,"Times New Roman",Times,serif;
+}
+
+#quickfilter_jump_to label {
     font-size: 14px;
     font-weight: normal;
     font-family: Georgia,"Times New Roman",Times,serif;

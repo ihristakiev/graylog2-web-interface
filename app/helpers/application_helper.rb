@@ -15,6 +15,14 @@ module ApplicationHelper
 
     "<li class=\"#{"topmenu-active" if is_current_menu_item?(current)}\">#{link_to(title, "/#{current}")}</li>"
   end
+  
+  def button_tag icon, title,  options={}
+    img = tag("img", :src => icon,
+                     :alt => "", :open => false, )
+    options.merge!({ "title" => title, "alt" => title })  # 'alt' for IE compatability (because it does not support 'title')
+    content_tag(:button, img, options)
+  end
+  
 
   def tab_link tab
     "<div class=\"content-tabs-tab#{" content-tabs-tab-active" if is_current_tab?(tab)}\" >

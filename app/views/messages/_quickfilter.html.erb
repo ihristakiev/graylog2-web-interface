@@ -2,33 +2,22 @@
   <%= form_tag((@stream ? stream_messages_path(@stream) : messages_path), :method => "GET") do -%>
   <dl id="messages-quickfilter-fields">
     <dt><%= label_tag "filters[:message]", "Message:" %></dt>
-    <dd><%= text_field_tag "filters[message]", params[:filters].blank? ? nil : params[:filters][:message] %> <%=raw tooltip("Message-search-syntax") %></dd>
+    <dd><%= text_field_tag "filters[message]", params[:filters].blank? ? nil : params[:filters][:message] %></dd>
 
     <!--dt><%= label_tag "filters[date]", "Timeframe:" %></dt>
     <dd><%= text_field_tag "filters[date]", params[:filters].blank? ? nil : params[:filters][:date] %> <%=raw tooltip("Timeframe-Filters") %></dd-->
-	
-    <dt><%= label_tag "filters[from]", "From:" %></dt>
-    <dd><%= text_field_tag "filters[from]", params[:filters].blank? ? nil : params[:filters][:from] %></dd>
-   
-    <dt><%= label_tag "filters[to]", "To:" %></dt>
-    <dd><%= text_field_tag "filters[to]", params[:filters].blank? ? nil : params[:filters][:to] %></dd>
-		
+  
+    <!--dt><%= label_tag "filters[to]", "To:" %></dt>
+    <dd><%= text_field_tag "filters[to]", params[:filters].blank? ? nil : params[:filters][:to] %></dd-->		
 
     <dt><%= label_tag "filters[facility]", "Facility:" %></dt>
     <dd><%= text_field_tag "filters[facility]", params[:filters].blank? ? nil : params[:filters][:facility] %></dd>
 
-    <dt><%= label_tag "filters[file]", "File:" %></dt>
+    <!--dt><%= label_tag "filters[file]", "File:" %></dt>
     <dd><%= text_field_tag "filters[file]", params[:filters].blank? ? nil : params[:filters][:file] %></dd>
 
     <dt><%= label_tag "filters[line]", "Line number:" %></dt>
-    <dd><%= text_field_tag "filters[line]", params[:filters].blank? ? nil : params[:filters][:line] %></dd>
-
-    <dt><%= label_tag "filters[severity]", "Severity:" %></dt>
-    <dd>
-      <%= select_tag "filters[severity]", raw("<option></option>" + options_for_select(get_ordered_severities_for_select, :selected => get_quickfilter_selected(params[:filters], :severity))) %>
-      <%= check_box_tag "filters[severity_above]", true, get_quickfilter_selected(params[:filters], :severity_above), :style => "width: 15px;" || false %>
-      <label for="filters_severity_above">or higher</label>
-    </dd>
+    <dd><%= text_field_tag "filters[line]", params[:filters].blank? ? nil : params[:filters][:line] %></dd-->
 
     <% if @host.blank? %>
     <dt><%= label_tag "filters[host]", "Host:" %></dt>
@@ -36,17 +25,18 @@
       <%= select_tag "filters[host]", raw("<option></option>" + options_for_select(Host.all.collect {|host| [ h(host.host) ]}.sort, :selected => get_quickfilter_selected(params[:filters], :host, :bson_id))) %>
     </dd>
     <% end %>
-
-    <% unless @additional_filters.blank? %>
-      <% @additional_filters.each do |k,v| %>
-        <dt><%= text_field_tag "filters[additional][keys][]", (k.to_s.at(0) == '_' ? k.to_s[1..k.to_s.length] : k.to_s), :class => "messages-quickfilter-additional-key" %></dt>
-        <dd><%= text_field_tag "filters[additional][values][]", v, :class => "messages-quickfilter-additional-value" %></dd>
-      <% end %>
-    <% end %>
+    
+    <dt><%= label_tag "filters[severity]", "Severity:" %></dt>
+    <dd>
+      <%= select_tag "filters[severity]", raw("<option></option>" + options_for_select(get_ordered_severities_for_select, :selected => get_quickfilter_selected(params[:filters], :severity))) %>
+      <%= check_box_tag "filters[severity_above]", true, get_quickfilter_selected(params[:filters], :severity_above), :style => "width: 15px;" || false %>
+      <label for="filters_severity_above">or higher</label>
+    </dd>
 
   </dl>
 
   <br />
+  <%= hidden_field_tag "login", current_user.login %>
 
   <% if !@stream.blank? %>
     <%= hidden_field_tag "stream_id", @stream.id %>
@@ -54,13 +44,20 @@
   <% if !@host.blank? %>
     <%= hidden_field_tag "host_id", @host.host %>
   <% end %>
-
-  <%= awesome_link "Add additional field", "#", :id => "messages-quickfilter-add-additional" %>
-  <%= awesome_submit_link "Run filter" %>
+  <!--%= awesome_link "Add additional field", "#", :id => "messages-quickfilter-add-additional" %-->
+  <%= awesome_link "Apply Filter", "#", :id => "apply-quickfilter" %>
+  <%= awesome_link "Clear", "#", :id => "clear-quickfilter" %>
+  <!--%= awesome_submit_link "Search" %-->
 <% end -%>
+</div>
+
+<div id="quickfilter_jump_to" <%= params[:filters].blank? ? raw("style='display: none;'") : nil %>>
+	<%= label_tag "filters[jump_to]", "Jump to:" %>
+	<%= text_field_tag "filters[jump_to]", params[:jump_to].blank? ? nil : params[:filters][:jump_to] %>
+	<%= awesome_link "Go", "#", :id => "apply_quickfilter_jump_to" %>
+</div>
 
 <% unless @quickfilter_result_count.blank? %>
   <br />Quickfilter hit <span class="highlighted"><%= number_with_delimiter(@quickfilter_result_count, :delimiter => '.')  %></span> messages.
 <% end %>
 
-</div>

@@ -145,6 +145,14 @@ label {
     background-position: center center;
 }
 
+#quickfilter_jump_to {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 65%;
+    float: right;
+    text-align: left;	
+}
+
 .center {
     width: 100%;
     text-align: center;
@@ -334,8 +342,10 @@ label {
 }
 
 #sidebar-inner {
-  background-color: #fff;
+  background-color: #F8F8F8;
+  border: 1px solid green;
   padding: 15px;
+  z-index: 10;
 }
 
 #sidebar-hide-link {
@@ -356,7 +366,7 @@ label {
 }
 
 .content-bottom {
-  height: 7px;
+  height: 3px;
   background-image: url(../images/contentedge.png);
   background-repeat: repeat-x;
   background-color: #D4D4D4;

@@ -44,23 +44,49 @@ class MessageGateway
   @index = Tire.index(INDEX_NAME)
   @default_query_options = { :sort => "created_at desc" }
 
-  def self.all_paginated(page = 1)
+  def self.all_paginated(page = 1, last_poll_time = 0)
     r = search(pagination_options(page).merge(@default_query_options)) do
       query do
-        all
+        boolean do
+          must { range(:created_at, :gt => last_poll_time, :lt => Time.now.utc.to_i) }
+        end
       end
     end
 
     wrap(r)
   end
 
-  def self.all_of_stream_paginated(stream_id, page = 1)
-    wrap search("streams:#{stream_id}", pagination_options(page).merge(@default_query_options))
+  def self.all_of_stream_paginated(stream_id, page = 1, last_poll_time = Time.now.utc.to_i - 1)
+    r = search(pagination_options(page).merge(@default_query_options)) do
+      query do
+        boolean do
+          # Stream
+          must { term(:streams, stream_id) }
+          
+          # Timeframe.
+          must { range(:created_at, :gt => last_poll_time, :lt => Time.now.utc.to_i) }
+        end
+      end
+    end    
+    
+    wrap(r)
   end
 
-  def self.all_of_host_paginated(hostname, page = 1)
-    wrap search("host:#{hostname}", pagination_options(page).merge(@default_query_options))
-  end
+  def self.all_of_host_paginated(hostname, page = 1, last_poll_time = Time.now.utc.to_i - 1)
+    r = search(pagination_options(page).merge(@default_query_options)) do
+      query do
+        boolean do
+          # Host
+          must { term(:host, hostname) }
+          
+          # Timeframe.
+          must { range(:created_at, :gt => last_poll_time, :lt => Time.now.utc.to_i) }
+        end
+      end
+    end    
+    
+    wrap(r)   
+end
 
   def self.retrieve_by_id(id)
     wrap @index.retrieve(TYPE_NAME, id)
@@ -95,12 +121,12 @@ class MessageGateway
     return result
   end
 
-  def self.all_by_quickfilter(filters, page = 1, opts = {})
-    r = search pagination_options(page).merge(@default_query_options) do
+  def self.all_by_quickfilter(filters, page = 1, opts = {}, last_poll_time = 0, extra_options = {})
+    r = search pagination_options(page).merge(@default_query_options).merge(extra_options) do
       query do
         boolean do
           # Short message
-          must { string("message:#{filters[:message]}") } unless filters[:message].blank?
+          must { string("_message:#{filters[:message]}") } unless filters[:message].blank?
 
           # Facility
           must { term(:facility, filters[:facility]) } unless filters[:facility].blank?
@@ -131,8 +157,9 @@ class MessageGateway
           # Timeframe.
           from = DateTime::parse(filters[:from]).to_time.to_i unless filters[:from].blank?
           to = DateTime::parse(filters[:to]).to_time.to_i unless filters[:to].blank?
-          
-          must { range(:created_at, :gt => from, :lt => to) }
+          from ||= last_poll_time
+                 
+          must { range(:created_at, :gt => [from, last_poll_time].max, :lt => to) }
           
           #if !filters[:date].blank?
           #  range = Quickfilter.get_conditions_timeframe(filters[:date])
@@ -159,6 +186,7 @@ class MessageGateway
 
     end
 
+    #Juggernaut.publish("graylog2", r.to_json)
     wrap(r)
   end
 

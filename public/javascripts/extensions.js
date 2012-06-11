@@ -26,7 +26,7 @@ Date.prototype.toUTCDateString = function () {
  *   includeMilliseconds: change format to HH:MM:SS.mmm
  */
 Date.prototype.toUTCTimeString = function (includeUTC, includeMilliseconds) {
-	return extensions_pad(this.getUTCHours(), 2) + ":" + extensions_pad(this.getUTCMinutes(), 2) + ":" + extensions_pad(this.getUTCSeconds(), 2) + (includeMilliseconds ? ("." + extensions_pad(this.getUTCMilliseconds(), 3)) : "") + (includeUTC ? " UTC" : "");
+	return extensions_pad(this.getUTCHours(), 2) + ":" + extensions_pad(this.getUTCMinutes(), 2) + ":" + extensions_pad(this.getUTCSeconds(), 2) + (includeMilliseconds ? ("<span class=\"time-light\">." + extensions_pad(this.getUTCMilliseconds(), 3) + "</span>") : "") + (includeUTC ? " UTC" : "");
 };
 
 /**

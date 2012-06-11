@@ -45,8 +45,8 @@
   <%= javascript_tag("var relative_url_root = '#{controller.config.relative_url_root}';") %>
 
   <div id="pageload" style="display: none;"><%= Time.now.to_i %></div>
+  <div id="login" style="display: none;"><%= current_user.login %></div>
   <div id="gln" style="display: none;">&nbsp;Loading&hellip;</div>
-
   <div id="back-to-top">Back to top</div>
 
   <div id="current-throughputs">
@@ -65,13 +65,10 @@
     </div>
     <%= link_to image_tag("logo.png", :id => "toplogo"), (current_user.reader? ? streams_path : messages_path)%>
     <ul id="topmenu">
-      <% current_user.role == "admin" and permitted_to? :index, :messages do %><%=raw menu_item("Messages", messages_path) %><% end %>
-      <% permitted_to? :index, :streams do %><%=raw menu_item("Streams", streams_path) %><% end %>
+      <% permitted_to? :index, :messages do %><%=raw menu_item("Messages", messages_path) %><% end %>
       <% permitted_to? :index, :analytics do %><%=raw menu_item("Analytics", analytics_path) %><% end %>
       <% permitted_to? :index, :hosts do %><%=raw menu_item("Hosts", hosts_path) %><% end %>
-      <% permitted_to? :index, :blacklists do %><%=raw menu_item("Blacklists", blacklists_path) %><% end %>
       <% permitted_to? :index, :settings do %><%=raw menu_item("Settings", settings_path) %><% end %>
-      <% permitted_to? :index, :users do %><%=raw menu_item("Users", users_path) %><% end %>
     </ul>
 
   </div>
@@ -120,7 +117,6 @@
       <div id="sidebar">
         <a href="#" id="sidebar-hide-link" title="Close sidebar">x</a>
         <div id="sidebar-inner">
-          <%= yield :sidebar %>
         </div>
 
         <div class="content-bottom content-bottom-sidebar">
