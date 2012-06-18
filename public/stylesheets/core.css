@@ -64,6 +64,11 @@ tbody tr:hover {
     background-color: #ccffcc;
 }
 
+.isSelected {
+    background-color: #ddffdd;
+	
+}
+
 input, select {
     font-size: 12px;
     padding: 1px;

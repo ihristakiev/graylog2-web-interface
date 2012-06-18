@@ -606,7 +606,7 @@ function buildHTMLMessageFrom(message) {
 				+ "<td>" + message.host + "</td>" 
 				+ "<td>"+ syslog_level_to_human(message.level) + "</td>"
 				+ "<td>" + message.facility + "</td>"
-				+ "<td colspan=\"2\">" + message.message + "</td>"
+				+ "<td colspan=\"2\">" + message.message.trim() + "</td>"
 				+ "</tr>";
 };
 
@@ -669,25 +669,44 @@ function buildHostCssId(id) {
 
 function bindMessageSidebarClicks() {
   $(".message-row").bind("click", function() {
-    $("#gln").show();
-
+    already_selected = $(this).hasClass("isSelected");
     target = relative_url_root + "/messages/" + $(this).attr("id") + "?partial=true";
     
     stream_id = $("#stream_id").val();
     if (stream_id != undefined) {
       target += "&stream_id=" + stream_id;
     }
+    if (!already_selected)
+	{
+    	// Clear selection from everything else
+    	$(".message-row").each(function(){
+    		$(this).removeClass('isSelected');
+    	});
+    	
+        $("#gln").show();
+    	$.post(target, function(data) {
+	      $("#sidebar-inner").html(data);
 
-    $.post(target, function(data) {
-      $("#sidebar-inner").html(data);
+	      // Show sidebar if hidden.
+	      if (!$("#main-right").is(":visible")) {
+	          $("#main-right").show();
+	      }
 
-      // Show sidebar if hidden.
-      if (!$("#main-right").is(":visible")) {
-          $("#main-right").show();
-      }
-
-      $("#gln").hide();
-    });
+	      $("#gln").hide();
+	    });
+    	
+    	// Add selection to current element
+	    $(this).addClass("isSelected");	
+	}
+    else
+	{	      
+		  $(this).removeClass("isSelected");
+	      // Hide sidebar if shown.
+	      if ($("#main-right").is(":visible")) {
+	          $("#main-right").hide();
+	      }
+	}
+    
   });
 };
 
