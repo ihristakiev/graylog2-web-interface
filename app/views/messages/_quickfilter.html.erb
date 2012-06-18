@@ -2,7 +2,11 @@
   <%= form_tag((@stream ? stream_messages_path(@stream) : messages_path), :method => "GET") do -%>
   <dl id="messages-quickfilter-fields">
     <dt><%= label_tag "filters[:message]", "Message:" %></dt>
-    <dd><%= text_field_tag "filters[message]", params[:filters].blank? ? nil : params[:filters][:message] %></dd>
+    <dd>
+    	<%= text_field_tag "filters[message]", params[:filters].blank? ? nil : params[:filters][:message] %>
+    	<%= check_box_tag "filters[message_case]", false, get_quickfilter_selected(params[:filters], :message_case), :style => "width: 15px;" || false %>
+       	<label for="filters_message_case"> case-sensitive</label>   
+    </dd>
 
     <!--dt><%= label_tag "filters[date]", "Timeframe:" %></dt>
     <dd><%= text_field_tag "filters[date]", params[:filters].blank? ? nil : params[:filters][:date] %> <%=raw tooltip("Timeframe-Filters") %></dd-->
@@ -11,7 +15,12 @@
     <dd><%= text_field_tag "filters[to]", params[:filters].blank? ? nil : params[:filters][:to] %></dd-->		
 
     <dt><%= label_tag "filters[facility]", "Facility:" %></dt>
-    <dd><%= text_field_tag "filters[facility]", params[:filters].blank? ? nil : params[:filters][:facility] %></dd>
+    <dd>
+    	<%= text_field_tag "filters[facility]", params[:filters].blank? ? nil : params[:filters][:facility] %>
+    	<%= check_box_tag "filters[facility_case]", false, get_quickfilter_selected(params[:filters], :facility_case), :style => "width: 15px;" || false %>
+       	<label for="filters_facility_case"> case-sensitive</label>   
+    
+    </dd>
 
     <!--dt><%= label_tag "filters[file]", "File:" %></dt>
     <dd><%= text_field_tag "filters[file]", params[:filters].blank? ? nil : params[:filters][:file] %></dd>
@@ -53,7 +62,7 @@
 
 <div id="quickfilter_jump_to" <%= params[:filters].blank? ? raw("style='display: none;'") : nil %>>
 	<%= label_tag "filters[jump_to]", "Jump to:" %>
-	<%= text_field_tag "filters[jump_to]", params[:jump_to].blank? ? nil : params[:filters][:jump_to] %>
+	<%= text_field_tag "filters[jump_to]", params[:filters].blank? ? nil : params[:filters][:jump_to] %>
 	<%= awesome_link "Go", "#", :id => "apply_quickfilter_jump_to" %>
 </div>
 

@@ -372,6 +372,8 @@ $(document).ready(function(){
     	$("#filters_host").val("");
     	$("#filters_severity").val("");
     	$("#filters_severity_above").attr('checked', false);
+    	$("#filters_message_case").attr('checked', false);
+    	$("#filters_facility_case").attr('checked', false);
     	
     	// Clear filters on server as well
     	$("#apply-quickfilter").click();
@@ -380,43 +382,7 @@ $(document).ready(function(){
     	return false;
     });
 	
-    // Apply filter.
-    $("#apply-quickfilter").bind("click", function() {
-    	// Notify server via AJAX
-    	message = $("#filters_message").val();
-    	facility = $("#filters_facility").val();
-    	host = $("#filters_host").val();
-    	severity = $("#filters_severity").val();
-    	severity_above = $("#filters_severity_above").attr('checked');
-    	
-    	href =    "/messages?filters[message]=" + message +
-					       "&filters[facility]=" + facility +
-					       "&filters[host]=" + host +
-					       "&filters[severity]=" + severity +
-					       "&filters[severity_above]=" + severity_above +
-					       "&login=" + login_name ;
-    	
-    	$.get(href + "&applyFilter=true&page=1", 
-    		 function(data){
-    		 // Clear old table
-    		 $("#messages-tbody").children().remove();
-    		 
-    		 // Populate table with new content
-    		 data = JSON.parse(data);
-    		 for (i in data)
-			 {
-    			 appendMessage(data[i]);
-			 }
-    		 
-    		 // Update scroll-down link
-    		 $(".next-page").attr("href", href + "&page=2");
-    	});
 
-		// Refresh links to messages
-	    bindMessageSidebarClicks();
-    	// prevent the click on the link from propagating
-    	return false;
-    });	
     
     // Jump to
     $("#apply_quickfilter_jump_to").bind("click", function() {
@@ -425,11 +391,15 @@ $(document).ready(function(){
     	host = $("#filters_host").val();
     	severity = $("#filters_severity").val();
     	severity_above = $("#filters_severity_above").is(':checked');  
+    	message_case = $("#filters_message_case").is(':checked');
+    	facility_case = $("#filters_facility_case").is(':checked');
     	
     	to = $("#filters_jump_to").val();
     	
     	href =    "/messages?filters[message]=" + message +
+	       				   "&filters[message_case]=" + message_case +
 					       "&filters[facility]=" + facility +
+					       "&filters[facility_case]=" + facility_case +
 					       "&filters[host]=" + host +
 					       "&filters[severity]=" + severity +
 					       "&filters[severity_above]=" + severity_above +
@@ -451,8 +421,8 @@ $(document).ready(function(){
        		 // Update scroll-down link
        		 $(".next-page").attr("href", href + "&page=2");
 
-     		// Refresh links to messages
-     	    bindMessageSidebarClicks();
+     		 // Refresh links to messages
+     	     bindMessageSidebarClicks();
        	});
     	
     	// prevent the click on the link from propagating
@@ -498,72 +468,132 @@ $(document).ready(function(){
     /*
      * AJAX
      */
-    var next_exists = true;
-
-	var ajaxHandler = function(data) {
-		data = JSON.parse(data);
-		if (data.length == 0) {
-			next_exists = false;
-			return; // stop if no data returned
-		}
-		next_exists = true;
-		for (i in data)
-			{
-				appendMessage(data[i]);	// invert order of block (sorts it by created_at asc)
-			}
-		// update link to next page
-	   href = $(".next-page").attr("href");
-	   if (href === undefined) return;
-	   page = parseInt(/.page=(\d)+.*/g.exec(href)[1]); // String-> int
-	   $(".next-page").attr("href", href.replace(new RegExp("page="+page), "page=" + (page+1)) );
-	   
-
-		// Refresh links to messages
-	    bindMessageSidebarClicks();
-	};
     
-    // Get more data if we reach bottom
-    // http://stackoverflow.com/questions/3898130/how-to-check-if-a-user-has-scrolled-to-the-bottom
+    // Get more data if we reach bottom - see http://stackoverflow.com/questions/3898130/how-to-check-if-a-user-has-scrolled-to-the-bottom
+    var next_scroll_exists= true;
+    
     $(window).scroll(function() {
-    	if($(window).scrollTop() + $(window).height() > $(document).height() - 10) {
+    	if($(window).scrollTop() + $(window).height() == $(document).height()) {
 			href = $(".next-page").attr("href");
 		    if (href === undefined) return;
-			if (!next_exists)
+			if (!next_scroll_exists)
 			{		
 				// Modify request for even further historical data
 				///.*from.{0,5}=(.*)&filters.{0,5}host.*&filters.{0,5}to.{0,5}=(.*)&page.*$/.exec($(".next-page").attr("href"))
 				return;
 			}    		
 			// Bottom reached, do AJAX
-			$.get(href + "&onlyData=true", ajaxHandler);	
+			$.get(href + "&onlyData=true", function(data) {
+					data = JSON.parse(data);
+					if (data.length == 0) {
+						// stop if no data returned
+						next_scroll_exists = false;
+						return;
+					}
+					next_scroll_exists = true;
+					for (i in data)
+					{
+						appendMessage(data[i]);	// inser message
+					}
+					
+					// update link to next page
+				   href = $(".next-page").attr("href");
+				   if (href === undefined) return;
+				   page = parseInt(/.page=(\d)+.*/g.exec(href)[1]); // get page number (and convert it from String-> int)
+				   $(".next-page").attr("href", href.replace(new RegExp("page="+page), "page=" + (page+1)) );				   
+	
+				   // Refresh links to messages
+				   bindMessageSidebarClicks();
+			});	
 	   }
     });
     
+    // Apply filter.
+    $("#apply-quickfilter").bind("click", function() {
+    	// Notify server via AJAX
+    	message = $("#filters_message").val();
+    	facility = $("#filters_facility").val();
+    	host = $("#filters_host").val();
+    	severity = $("#filters_severity").val();
+    	severity_above = $("#filters_severity_above").attr('checked'); 
+    	message_case = $("#filters_message_case").is(':checked');
+    	facility_case = $("#filters_facility_case").is(':checked');
+    	
+    	href =    "/messages?filters[message]=" + message +
+		   				   "&filters[message_case]=" + message_case +
+					       "&filters[facility]=" + facility +
+		   				   "&filters[facility_case]=" + facility_case +
+					       "&filters[host]=" + host +
+					       "&filters[severity]=" + severity +
+					       "&filters[severity_above]=" + severity_above +
+					       "&login=" + login_name ;
+    	
+    	$.get(href + "&applyFilter=true&page=1", 
+    		 function(data){
+    		 // Clear old table
+    		 $("#messages-tbody").children().remove();
+    		 
+    		 // Populate table with new content
+    		 data = JSON.parse(data);
+    		 for (i in data)
+			 {
+    			 appendMessage(data[i]);
+			 }
+ 		 
+    		 // Update scroll-down link
+    		 $(".next-page").attr("href", href + "&page=2");  
+    		 
+			 // Refresh links to messages
+		     bindMessageSidebarClicks();  
+    	});
+
+    	// prevent the click on the link from propagating
+    	return false;
+    });	 
+    
     // Jump Up and Jump Down buttons
     $(".jump_up").bind("click", function(){
-    	$.get("/messages?login=" + login_name + "&jumpUp=true",
-    		   function(data){
+    	$.get("/messages?login=" + login_name + "&jumpUp=true", function(data){
 					new_to = parseFloat(data); // String-> Float
 					if (new_to == 0) return;
 					href = "/messages?login=" + login_name +
-							        "&to=" + new_to +
-				    			    "&jumpUp=false";
+							        "&to=" + new_to;
 					ajax_helper(data, href);
     	});
     	
     	return false;
     });
     
-    $(".jump_down").bind("click", function(){
+    $(".jump_down").bind("click", function(){    	
 		href = $(".next-page").attr("href");
 	    if (href === undefined) return;
-		if (!next_exists)
-		{		
-			// Modify request for even further historical data
-			///.*from.{0,5}=(.*)&filters.{0,5}host.*&filters.{0,5}to.{0,5}=(.*)&page.*$/.exec($(".next-page").attr("href"))
-		}    		
+//		if (!next_exists)
+//		{		
+//			// Modify request for even further historical data
+//			///.*from.{0,5}=(.*)&filters.{0,5}host.*&filters.{0,5}to.{0,5}=(.*)&page.*$/.exec($(".next-page").attr("href"))
+//		}    		
 		
-		$.get(href + "&onlyData=true", ajaxHandler);	
+		$.get(href + "&onlyData=true", function(data) {
+			data = JSON.parse(data);
+			if (data.length == 0) {
+				return; // stop if no data returned
+			}
+
+	    	// Clear current messages table
+	    	$("#messages-tbody").empty();
+			
+			for (i in data)
+			{
+				appendMessage(data[i]);	// invert order of block (sorts it by created_at asc)
+			}
+			
+			// update link to next page
+		   page = parseInt(/.page=(\d)+.*/g.exec(href)[1]); // String-> int
+		   $(".next-page").attr("href", href.replace(new RegExp("page="+page), "page=" + (page+1)) );				   
+
+		   // Refresh links to messages
+		   bindMessageSidebarClicks();
+		});	
 		
     	return false;
     });
@@ -614,7 +644,7 @@ function syslog_level_to_human(level) {
 };
 
 function ajax_helper(newdata, href) {
-	$.get( href + "&page=1",    						
+	$.get( href + "&page=1" + "&jumpUp=false",    						
 			function(data1){
        		 // Clear old table
        		 $("#messages-tbody").children().remove();

@@ -8,7 +8,9 @@ class MessagesController < ApplicationController
   @@last_message_created_at = Hash.new
   @@threads = Hash.new   #  { "graylog2" => Thread("graylog2"), ...}
   @@thread_filters = Hash.new
-  POLL_INTERVAL = 1
+  POLL_INTERVAL = 1   # s
+  
+  Juggernaut.options= {:port => 3002}
   
   
   # XXX ELASTIC clean up triple-duplicated quickfilter shit
@@ -100,12 +102,12 @@ class MessagesController < ApplicationController
     end
     
     
-    if params[:jumpUp] && params[:login]      
-      Juggernaut.publish("1.0", params[:login])
-      Juggernaut.publish("1.0", params[:jumpUp])
+    if params[:jumpUp] && params[:login]   
+      #Juggernaut.publish("1.0", params[:login])
+      #Juggernaut.publish("1.0", params[:jumpUp])
       login = params[:login]
       if params[:jumpUp] == "true"
-          Juggernaut.publish("1.1", params[:jumpUp])
+          #Juggernaut.publish("1.1", params[:jumpUp])
           old_filter = @@thread_filters[login]
           if !old_filter.nil?
             new_filter = Hash[old_filter] # Creates new object
@@ -123,9 +125,9 @@ class MessagesController < ApplicationController
               render :text => "0"
           end
       else
-        Juggernaut.publish("1.2", params[:jumpUp])
+        #Juggernaut.publish("1.2", params[:jumpUp])
         if !@@thread_filters[login].nil? 
-          Juggernaut.publish("1.3", @@thread_filters[login].merge({:to => Time.at(params[:to].to_i).utc.to_s}))
+          #Juggernaut.publish("1.3", @@thread_filters[login].merge({:to => Time.at(params[:to].to_i).utc.to_s}))
           result = MessageGateway.all_by_quickfilter(@@thread_filters[login].merge({:to => Time.at(params[:to].to_i).utc.to_s}), params[:page], {}, 0)
           render :js => result.to_json
         else
@@ -207,7 +209,7 @@ class MessagesController < ApplicationController
           end
           if !result.empty?          
             @@last_message_created_at[login] = result[0].created_at            
-            Juggernaut.publish(login, result.to_json) 
+            #Juggernaut.publish(login, result.to_json) 
           end
           sleep MessagesController::POLL_INTERVAL
         end        

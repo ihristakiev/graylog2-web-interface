@@ -40,6 +40,7 @@
   <%= javascript_include_tag "shell" if @has_shell %>
   <%= javascript_include_tag "rails" %>
   <%= javascript_include_tag "extensions" %>
+  <%= javascript_include_tag "juggernaut" %>
 </head>
 <body>
   <%= javascript_tag("var relative_url_root = '#{controller.config.relative_url_root}';") %>

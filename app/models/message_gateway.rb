@@ -9,6 +9,13 @@ module Tire::Model::Naming::ClassMethods
   end
 end
 
+class Tire::Search::Query
+  def wildcard(field, value, options={})
+    query = { field => value }
+    @value = { :wildcard => query }
+  end
+end
+
 # monkey patch, shmonkey patch (Raising Timeout from 60s to no timeout)
 module Tire::HTTP::Client
   class RestClient
@@ -37,7 +44,8 @@ class MessageGateway
   end
 
   TYPE_NAME = "message"
-
+  Tire.configure {logger 'ES.log'}
+  
   index_name(INDEX_NAME)
   document_type(TYPE_NAME)
 
@@ -126,10 +134,10 @@ end
       query do
         boolean do
           # Short message
-          must { string("_message:#{filters[:message]}") } unless filters[:message].blank?
+  #        must { string( "message:#{filters[:message]}", {:default_operator => "AND", :analyzer => "whitespace"}) } unless filters[:message].blank?
 
           # Facility
-          must { term(:facility, filters[:facility]) } unless filters[:facility].blank?
+  #       must { wildcard(:_facility, "*#{filters[:facility]}*") } unless filters[:facility].blank?
 
           # Severity
           if !filters[:severity].blank? and filters[:severity_above].blank?
@@ -186,8 +194,11 @@ end
 
     end
 
-    #Juggernaut.publish("graylog2", r.to_json)
-    wrap(r)
+    result = wrap(r)
+    Juggernaut.publish("result - preprocess", result.size)
+    Juggernaut.publish("result - preprocess - message_case", filters[:message_case])
+    Juggernaut.publish("result - preprocess - facility_case", filters[:facility_case])
+    postprocess(result, {:message => filters[:message], :facility=> filters[:facility], :message_case_sensitive => filters[:message_case], :facility_case_sensitive => filters[:facility_case]})
   end
 
   def self.total_count
@@ -272,6 +283,53 @@ end
   end
 
   private
+  
+  def self.postprocess(x, options = {})
+    return nil if x.nil?
+    
+    message_substring = options[:message]
+    message_case_sensitive = options[:message_case_sensitive]
+    facility_substring = options[:facility]
+    facility_case_sensitive = options[:facility_case_sensitive]
+    
+    Juggernaut.publish("message_substring", message_substring)
+    Juggernaut.publish("message_case_sensitive", message_case_sensitive)
+    Juggernaut.publish("message_case_sensitive_type", message_case_sensitive.class)
+    Juggernaut.publish("facility_substring", facility_substring)
+    Juggernaut.publish("facility_case_sensitive", facility_case_sensitive)
+    Juggernaut.publish("facility_case_sensitive_type", facility_case_sensitive.class)
+    
+    # Remove elements if they dont have our message/facility as substring
+    # See http://stackoverflow.com/questions/3260686/how-can-i-use-arraydelete-while-iterating-over-the-array
+    x.delete_if do |document|
+      skip_message = false
+      
+      # check message field
+      message = document.message
+      if !message_substring.empty?
+        if message_case_sensitive == "true"
+          skip_message = !message.include?(message_substring)
+        else
+          skip_message = !message.downcase.include?(message_substring.downcase)
+        end      
+      end
+            
+      # check facility field
+      facility = document.facility
+      if !facility_substring.empty? && !skip_message
+        if facility_case_sensitive == "true"
+          skip_message = !facility.include?(facility_substring)
+        else
+          skip_message = !facility.downcase.include?(facility_substring.downcase)
+        end      
+      end
+      
+      skip_message
+    end   
+        
+    Juggernaut.publish("result - postprocess", x.size)
+    return x
+  end
 
   def self.wrap(x)
     return nil if x.nil?
