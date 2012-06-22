@@ -13,15 +13,9 @@
 </head>
 <body>
 
-<% if has_users %>
-  <div id="loginbox">
-    <%= yield %>
-  </div>
-<% else %>
-  <div id="firstuser-box">
-    <%= yield %>
-  </div>
-<% end %>
+<div id="loginbox">
+  <%= yield %>
+</div>
 
 </body>
 </html>

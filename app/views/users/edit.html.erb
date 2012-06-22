@@ -4,6 +4,5 @@
 </div>
 
 <h1>Edit user <span class="highlighted"><%= @user.login %></span></h1>
-<% @user.password = @user.password_confirmation = nil %>
 
 <%= render :partial => "user_form", :locals => {:form_action => "update", :user => @user}%>

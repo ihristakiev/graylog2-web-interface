@@ -13,12 +13,6 @@
   <dt><%= label_tag 'name' %></dt>
   <dd><%= f.text_field :name %><%= @user.errors[:name].join(" and ")%></dd>
 
-  <dt><%= label_tag 'password' %></dt>
-  <dd><%= f.password_field :password %><%= @user.errors[:password].join(" and ")%></dd>
-
-  <dt><%= label_tag 'password_confirmation', 'Confirm Password' %></dt>
-  <dd><%= f.password_field :password_confirmation %><%= @user.errors[:password_confirmation].join(" and ")%></dd>
-
   <dt><%= hidden_field_tag "user[role]", "admin" %></dt>
   <dd><%= submit_tag "Create user" %></dd>
 

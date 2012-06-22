@@ -8,10 +8,9 @@ class MessagesController < ApplicationController
   @@last_message_created_at = Hash.new
   @@threads = Hash.new   #  { "graylog2" => Thread("graylog2"), ...}
   @@thread_filters = Hash.new
-  POLL_INTERVAL = 1   # s
+  POLL_INTERVAL = 3   # s
   
   Juggernaut.options= {:port => 3002}
-  
   
   # XXX ELASTIC clean up triple-duplicated quickfilter shit
   def do_scoping
@@ -47,9 +46,7 @@ class MessagesController < ApplicationController
       end
     else
       @scoping = :messages
-      unless (params[:action] == "show")
-        block_access_for_non_admins
-      end
+      session[:time_of_last_request] ||= Time.now.utc.to_i 
 
       if params[:filters].blank?
         @messages = MessageGateway.all_paginated(params[:page], 0)
@@ -81,21 +78,24 @@ class MessagesController < ApplicationController
     @has_sidebar = true
     @load_flot = true
     @use_backtotop = false
+    
+    ObserversController.start
 
     if ::Configuration.allow_version_check
       @last_version_check = current_user.last_version_check
     end
     
     if params[:onlyData]
-      if params[:filters]
-        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page])
+      if !params[:filters].nil?
+        @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page], {}, 0, {}, session[:time_of_last_request])
       else
-        @messages = MessageGateway.all_paginated(params[:page])
+        @messages = MessageGateway.all_paginated(params[:page], 0, session[:time_of_last_request])
       end
       render :js => @messages.to_json
     end     
       
     if params[:filters] && params[:applyFilter] && params[:login] && !params[:onlyData]
+      session[:time_of_last_request] = Time.now.utc.to_i
       MessagesController.applyFilter(params[:login], params[:filters])
       @messages = MessageGateway.all_by_quickfilter(params[:filters], 1, {}, 0) rescue nil
       render :js => @messages.to_json
@@ -103,11 +103,8 @@ class MessagesController < ApplicationController
     
     
     if params[:jumpUp] && params[:login]   
-      #Juggernaut.publish("1.0", params[:login])
-      #Juggernaut.publish("1.0", params[:jumpUp])
       login = params[:login]
       if params[:jumpUp] == "true"
-          #Juggernaut.publish("1.1", params[:jumpUp])
           old_filter = @@thread_filters[login]
           if !old_filter.nil?
             new_filter = Hash[old_filter] # Creates new object
@@ -125,13 +122,14 @@ class MessagesController < ApplicationController
               render :text => "0"
           end
       else
-        #Juggernaut.publish("1.2", params[:jumpUp])
+        # This clears the client's message table, so reset the timestamp pointer
+        session[:time_of_last_request] = Time.now.utc.to_i
+        
         if !@@thread_filters[login].nil? 
-          #Juggernaut.publish("1.3", @@thread_filters[login].merge({:to => Time.at(params[:to].to_i).utc.to_s}))
-          result = MessageGateway.all_by_quickfilter(@@thread_filters[login].merge({:to => Time.at(params[:to].to_i).utc.to_s}), params[:page], {}, 0)
+          result = MessageGateway.all_by_quickfilter(@@thread_filters[login].merge({:to => Time.at(params[:to].to_i).utc.to_s}), params[:page], {}, 0, {}, session[:time_of_last_request])
           render :js => result.to_json
         else
-          result = MessageGateway.all_paginated(params[:page], 0) rescue nil
+          result = MessageGateway.all_paginated(params[:page], session[:time_of_last_request]) rescue nil
           render :js => result.to_json
         end         
       end
@@ -139,9 +137,7 @@ class MessagesController < ApplicationController
     
       
     #if params[:login]
-      #MessagesController.applyFilter(params[:login], params[:filters])       
-    #Juggernaut.publish("graylog2", current_user.login) 
-    MessagesController.start(current_user.login)
+      #MessagesController.applyFilter(params[:login], params[:filters])    
       #render :js => "true"
     #end    
     
@@ -201,16 +197,20 @@ class MessagesController < ApplicationController
       @@last_message_created_at[login] = Time.now.utc.to_i
       
       @@threads[login] = Thread.new(login) do
-        until false do         
+        until false do     
+          
+          # Do not use pagination since we are polling
           if !@@thread_filters[login].nil?   
-            result = MessageGateway.all_by_quickfilter(@@thread_filters[login], 1, {}, @@last_message_created_at[login]) rescue nil
+            result = MessageGateway.all_by_quickfilter_since(MessagesController.getFilter(login), {}, @@last_message_created_at[login]) rescue nil
           else
-            result = MessageGateway.all_paginated(1, @@last_message_created_at[login]) rescue nil
+            result = MessageGateway.all_since(@@last_message_created_at[login]) rescue nil
           end
-          if !result.empty?          
-            @@last_message_created_at[login] = result[0].created_at            
-            #Juggernaut.publish(login, result.to_json) 
+          
+          if !result.empty?        
+            @@last_message_created_at[login] = result[0].created_at         
+            Juggernaut.publish(login, result.to_json) 
           end
+          
           sleep MessagesController::POLL_INTERVAL
         end        
       end
@@ -221,17 +221,22 @@ class MessagesController < ApplicationController
     @@thread_filters[login] = filter
   end
   
+  def self.getFilter(login)
+    @@thread_filters[login]
+  end
+  
   def self.clearFilter(login="graylog2")
     @@thread_filters.delete login
   end
   
-  def self.end(login)
+  def self.stop(login)
     if login.nil?
       @@threads.each do |login_name, thread|
-        thread.stop
+        thread && thread.exit
       end
     else
-      @@threads[login].stop
+      @@threads[login] && @@threads[login].exit
+      @@threads[login] = nil      
     end    
   end
   

@@ -2,7 +2,6 @@ Graylog2WebInterface::Application.routes.draw do
   match 'logout' => 'sessions#destroy', :as => :logout
   match 'login' => 'sessions#new', :as => :login
   resource :session
-  resources :dashboard
   resources :operations
 
   resources :users do
@@ -42,62 +41,6 @@ Graylog2WebInterface::Application.routes.draw do
   end
 
   resources :messagecomments do
-  end
-
-  resources :streams do
-    resources :messages
-    resources :streamrules
-    resources :forwarders
-
-    resources :dashboard
-
-    member do
-      get :analytics
-      post :favorite
-      post :unfavorite
-      post :alertable
-      post :setdescription
-      post :showrange
-      get :showrange
-      post :rules
-      get :rules
-      post :forward
-      get :forward
-      post :setalarmvalues
-      post :togglealarmactive
-      post :togglefavorited
-      post :togglealarmforce
-      post :togglesubscription
-      post :toggledisabled
-      post :rename
-      post :clone
-      get :settings
-      post :subscribe
-      post :unsubscribe
-      post :categorize
-      post :addcolumn
-      delete :removecolumn
-      post :shortname
-      post :related
-    end
-  end
-
-  resources :alertedstreams do
-    member do
-      post :toggle
-    end
-  end
-
-  resources :subscribedstreams do
-    member do
-      post :toggle
-    end
-  end
-
-  resources :streamcategories do
-    member do
-      get :rename
-    end
   end
 
   resource :analytics do

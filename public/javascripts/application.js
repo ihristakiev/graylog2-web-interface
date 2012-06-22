@@ -5,7 +5,7 @@ $(document).ajaxSend(function(e, xhr, options) {
 
 $(document).ready(function(){
 	
-    var login_name = $("#login").html();
+    var login_name = $("#login").html()+ "_" + Math.floor(Math.random()*10000+1);
 
     // Hide notifications after some time.
     setInterval(function() {
@@ -336,6 +336,7 @@ $(document).ready(function(){
 		{
 			prependMessage(data[data.length - i - 1]);	// invert order of block (sorts it by created_at asc)
 		}
+		
 		// Refresh links to messages
 	    bindMessageSidebarClicks();
 	};   
@@ -347,20 +348,27 @@ $(document).ready(function(){
 	 * Toggle button
 	 */
     $(".toggle-liveview").bind("click", function() {
-      if ($(this).hasClass("active")) {
-    	 // Pause server-push 
-    	 jug.unsubscribe(login_name);
+      if (!$(this).hasClass("inactive")) {
+    	// Pause server-push 
+    	jug.unsubscribe(login_name);
+        subscribed = false;
     	  
     	// housekeeping
-        $(this).removeClass("active");
-        $(this).attr("src", "/images/icons/sun.png");
-      } else {
+        $(this).addClass("inactive");
+        $(this).find("img").attr("src", "/images/icons/start.png");
+        $(this).attr("title", "Start live-view");
+        $(this).attr("alt", "Start live-view");
+      } 
+      else {
     	// Resume server-push  
     	jug.subscribe(login_name, pushHandler);
+        subscribed = true;
     	  
     	// housekeeping
-        $(this).attr("src", "/images/icons/sun_active.png");
-        $(this).addClass("active");
+        $(this).find("img").attr("src", "/images/icons/stop.png");
+        $(this).attr("title", "Stop live-view");
+        $(this).attr("alt", "Stop live-view");
+        $(this).removeClass("inactive");
       }
     });
     
@@ -441,12 +449,6 @@ $(document).ready(function(){
             $('#messages-quickfilter').hide();
             $('#quickfilter_jump_to').hide();
             
-            // Resume live-view
-       	 	if (!subscribed) {
-       	 		jug.subscribe(login_name, pushHandler);
-       	 		subscribed = true;
-       	 	}
-            
             
         } else {
             // Quickfilter is not expanded. Expand on click.
@@ -455,13 +457,6 @@ $(document).ready(function(){
             // Show quickfilters.
             $('#messages-quickfilter').fadeIn(800);
             $('#quickfilter_jump_to').fadeIn(800);
-            
-
-            // Stop live-view
-       	 	if (subscribed) {
-       	 		jug.unsubscribe(login_name);
-       	 		subscribed = false;
-       	 	}
         }
     });
 	
@@ -668,21 +663,23 @@ function buildHostCssId(id) {
 };
 
 function bindMessageSidebarClicks() {
+  $(".message-row").unbind("click");
   $(".message-row").bind("click", function() {
-    already_selected = $(this).hasClass("isSelected");
-    target = relative_url_root + "/messages/" + $(this).attr("id") + "?partial=true";
+	row = $(this);
+    already_selected = row.hasClass("isSelected");
+    target = relative_url_root + "/messages/" + row.attr("id") + "?partial=true";
     
-    stream_id = $("#stream_id").val();
-    if (stream_id != undefined) {
-      target += "&stream_id=" + stream_id;
-    }
     if (!already_selected)
 	{
     	// Clear selection from everything else
     	$(".message-row").each(function(){
-    		$(this).removeClass('isSelected');
+    		if ($(this) != row) $(this).removeClass('isSelected');
     	});
     	
+  	    // Add selection to current element
+	    row.addClass("isSelected");	
+	    
+	    
         $("#gln").show();
     	$.post(target, function(data) {
 	      $("#sidebar-inner").html(data);
@@ -693,19 +690,23 @@ function bindMessageSidebarClicks() {
 	      }
 
 	      $("#gln").hide();
+	      
+
 	    });
     	
-    	// Add selection to current element
-	    $(this).addClass("isSelected");	
 	}
     else
 	{	      
-		  $(this).removeClass("isSelected");
+		  row.removeClass("isSelected");
 	      // Hide sidebar if shown.
 	      if ($("#main-right").is(":visible")) {
 	          $("#main-right").hide();
 	      }
 	}
+    
+    // Prevent event bubbling
+    // http://stackoverflow.com/questions/512010/why-does-my-jquery-alert-show-twice
+    return false;
     
   });
 };

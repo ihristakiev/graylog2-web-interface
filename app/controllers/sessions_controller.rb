@@ -9,11 +9,12 @@ class SessionsController < ApplicationController
   end
 
   def new
+    
   end
 
   def create
     logout_keeping_session!
-    user = User.authenticate(params[:login], params[:password])
+    user = User.authenticate(params[:login])
     if user
       # Protects against session fixation attacks, causes request forgery
       # protection if user resubmits an earlier form using back
@@ -22,13 +23,23 @@ class SessionsController < ApplicationController
       self.current_user = user
       new_cookie_flag = (params[:remember_me] == "1")
       handle_remember_cookie!(new_cookie_flag)
-      redirect_to (current_user.reader? ? streams_path : root_path)
+      redirect_to root_path
       flash[:notice] = "Logged in successfully"
-    else
-      note_failed_signin
-      @login       = params[:login]
-      @remember_me = params[:remember_me]
-      render :action => 'new'
+    else      
+      @user = User.new({ :login => params[:login], :role => "admin"})
+      success = @user && @user.save
+      if success && @user.errors.empty?
+        self.current_user = @user
+        new_cookie_flag = (params[:remember_me] == "1")
+        handle_remember_cookie!(new_cookie_flag)
+        redirect_to root_path
+        flash[:notice] = "User has been created."
+      else
+        note_failed_signin
+        @login       = params[:login]
+        @remember_me = params[:remember_me]
+        render :action => 'new'
+      end
     end
   end
 

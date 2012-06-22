@@ -1,4 +1,4 @@
-<h2>Welcome, <span class="highlighted"><%= current_user.display_name %></span>!</h2>
+<h2>Welcome, <span class="highlighted"><%= current_user.login %></span>!</h2>
 Your current time: <%= gl_date(Time.zone.now) %>
 
 <div id="sidebar-graph" style="height: 100px;"></div>
@@ -14,17 +14,6 @@ Your current time: <%= gl_date(Time.zone.now) %>
       :hours => 2
     )
 %>
-
-<h3>Favorite streams</h3>
-<ul id="favorite-streams">
-<% if current_user.favorite_streams.blank? %>
-  <li>No favorites.</li>
-<% else %>
-  <% current_user.favorite_streams.each do |favorite| %>
-    <li><%=raw stream_link(favorite) %></li>
-  <% end %>
-<% end %>
-</ul>
 
 <h3>Jobs & Tasks <%= tooltip("Notifications") %></h3>
 <ul id="jobsandtasks">
@@ -57,8 +46,6 @@ Your current time: <%= gl_date(Time.zone.now) %>
 
 <% if current_user.role == "admin" %>
 <br />
-
-<%= awesome_link "Open dashboard", dashboard_index_path, :style => "display: inline;", :target => "_blank" %>
 
 <br /><br />
 <%= awesome_link "Server health", health_index_path %>

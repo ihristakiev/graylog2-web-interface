@@ -26,15 +26,16 @@ additional_columns ||= []
 <table id="messages" class="messages<%= defined?(@inline_version) ? " messages-inline" : nil %>">
   <thead>
     <tr>
-      <th class="messages-c-date">Date</th>
-      <th class="messages-c-host">Host</th>
-      <th class="messages-c-severity">Sev.</th>
-      <th class="messages-c-facility">Facility</th>
+      <th class="messages-c-date" width="10%">Date</th>
+      <th class="messages-c-host" width="8%">Host</th>
+      <th class="messages-c-severity" width="5%">Sev.</th>
+      <th class="messages-c-facility" width="10%">Facility</th>
       <% additional_columns.each do |col| %>
       <th><%= col %></th>
       <% end %>
-      <th>Message</th>
-      <th class="messages-c-tools">
+      <th width="57%">Message</th>
+      <th class="messages-c-tools" width="10%">
+          <%= button_tag "/images/icons/stop.png", "Stop live-view", {:class => "toggle-liveview"} %>
           <%= button_tag "/images/icons/up.gif", "Go Up", {:class => "jump_up"} %>
           <%= button_tag "/images/icons/down.gif", "Go Down", {:class => "jump_down"} %>
       </th>
@@ -51,7 +52,7 @@ additional_columns ||= []
         <% additional_columns.each do |col| %>
           <td><%= message.additional_fields[col].blank? ? "-" : message.additional_fields[col] %></td>
         <% end %>
-        <td colspan="2">
+        <td colspan="2" width="70%">
           <%= message.message[0..message_length] %>
           <%=raw (message.message.length > message_length) && !defined?(dont_show_links) ? "<span class='light'>...</span>" : nil %>
         </td>

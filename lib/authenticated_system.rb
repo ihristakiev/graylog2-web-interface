@@ -110,8 +110,8 @@ module AuthenticatedSystem
 
     # Called from #current_user.  Now, attempt to login by basic authentication information.
     def login_from_basic_auth
-      authenticate_with_http_basic do |login, password|
-        self.current_user = User.authenticate(login, password)
+      authenticate_with_http_basic do |login|
+        self.current_user = User.authenticate(login)
       end
     end
 
@@ -153,9 +153,6 @@ module AuthenticatedSystem
     #
     # Remember_me Tokens
     #
-    # Cookies shouldn't be allowed to persist past their freshness date,
-    # and they should be changed at each login
-
     # Cookies shouldn't be allowed to persist past their freshness date,
     # and they should be changed at each login
 

@@ -11,7 +11,7 @@ end
 
 class Tire::Search::Query
   def wildcard(field, value, options={})
-    query = { field => value }
+    query = { field => {:wildcard => value}.update(options) }
     @value = { :wildcard => query }
   end
 end
@@ -52,8 +52,20 @@ class MessageGateway
   @index = Tire.index(INDEX_NAME)
   @default_query_options = { :sort => "created_at desc" }
 
-  def self.all_paginated(page = 1, last_poll_time = 0)
+  def self.all_paginated(page = 1, last_poll_time = 0, less_than = Time.now.utc.to_i)
     r = search(pagination_options(page).merge(@default_query_options)) do
+      query do
+        boolean do
+          must { range(:created_at, :gt => last_poll_time, :lt => less_than) }
+        end
+      end
+    end
+    
+    wrap(r)
+  end
+
+  def self.all_since(last_poll_time = Time.now.utc)
+    r = search(@default_query_options) do
       query do
         boolean do
           must { range(:created_at, :gt => last_poll_time, :lt => Time.now.utc.to_i) }
@@ -129,14 +141,108 @@ end
     return result
   end
 
-  def self.all_by_quickfilter(filters, page = 1, opts = {}, last_poll_time = 0, extra_options = {})
+  def self.all_by_quickfilter(filters, page = 1, opts = {}, last_poll_time = 0, extra_options = {}, less_than)
     r = search pagination_options(page).merge(@default_query_options).merge(extra_options) do
       query do
         boolean do
-          # Short message
-  #        must { string( "message:#{filters[:message]}", {:default_operator => "AND", :analyzer => "whitespace"}) } unless filters[:message].blank?
-
+          
+          # Short message  
+          if !filters[:message_case].blank?
+            filters[:message].split(" ").each do |substring|
+              must { wildcard( :message, "*#{substring.downcase}*") }
+            end
+          end   
+        
           # Facility
+          if !filters[:message_case].blank?
+            filters[:facility].split(" ").each do |substring|
+              must { wildcard( :facility, "*#{substring.downcase}*") }
+            end
+          end
+          
+  #       must { string( "message:#{filters[:message]}", {:default_operator => "AND", :analyzer => "whitespace"}) } unless filters[:message].blank?
+  #       must { wildcard(:_facility, "*#{filters[:facility]}*") } unless filters[:facility].blank?
+
+          # Severity
+          if !filters[:severity].blank? and filters[:severity_above].blank?
+            must { term(:level, filters[:severity]) }
+          end
+
+          # Host
+          must { term(:host, filters[:host]) } unless filters[:host].blank?
+
+          # Additional fields.
+          Quickfilter.extract_additional_fields_from_request(filters).each do |key, value|
+            must { term("_#{key}".to_sym, value) }
+          end
+
+          # Possibly narrow down to stream?
+          unless opts[:stream_id].blank?
+            must { term(:streams, opts[:stream_id]) }
+          end
+          
+          # Severity (or higher)
+          if !filters[:severity].blank? and !filters[:severity_above].blank?
+            must { range(:level, :to => filters[:severity].to_i) }
+          end
+      
+          # Timeframe.
+          from = DateTime::parse(filters[:from]).to_time.to_i unless filters[:from].blank?
+          to = DateTime::parse(filters[:to]).to_time.to_i unless filters[:to].blank?
+          from ||= last_poll_time
+          to ||= less_than
+                 
+          must { range(:created_at, :gt => [from, last_poll_time].max, :lt => [to, less_than].min) }
+          
+          #if !filters[:date].blank?
+          #  range = Quickfilter.get_conditions_timeframe(filters[:date])
+          #  must { range(:created_at, :gt => range[:greater], :lt => range[:lower]) }
+          #end
+          
+          unless opts[:hostname].blank?
+            must { term(:host, opts[:hostname]) }
+          end
+          
+          # XXX Duplicated?
+          # Possibly narrow down to stream?
+          unless opts[:stream_id].blank?
+            must { term(:streams, opts[:stream_id]) }
+          end
+          
+          # File name
+          must { term(:file, filters[:file]) } unless filters[:file].blank?
+
+          # Line number
+          must { term(:line, filters[:line]) } unless filters[:line].blank?
+        end
+      end
+
+    end
+
+    result = wrap(r)
+    postprocess(result, {:message => filters[:message], :facility=> filters[:facility], :message_case_sensitive => filters[:message_case], :facility_case_sensitive => filters[:facility_case]})
+  end
+  
+  def self.all_by_quickfilter_since(filters, opts = {}, last_poll_time = Time.now.utc, extra_options = {})
+    r = search @default_query_options.merge(extra_options) do
+      query do
+        boolean do
+          
+          # Short message  
+          if !filters[:message_case].blank?
+            filters[:message].split(" ").each do |substring|
+              must { wildcard( :message, "*#{substring.downcase}*") }
+            end
+          end   
+        
+          # Facility
+          if !filters[:message_case].blank?
+            filters[:facility].split(" ").each do |substring|
+              must { wildcard( :facility, "*#{substring.downcase}*") }
+            end
+          end
+          
+  #       must { string( "message:#{filters[:message]}", {:default_operator => "AND", :analyzer => "whitespace"}) } unless filters[:message].blank?
   #       must { wildcard(:_facility, "*#{filters[:facility]}*") } unless filters[:facility].blank?
 
           # Severity
@@ -195,11 +301,14 @@ end
     end
 
     result = wrap(r)
-    Juggernaut.publish("result - preprocess", result.size)
-    Juggernaut.publish("result - preprocess - message_case", filters[:message_case])
-    Juggernaut.publish("result - preprocess - facility_case", filters[:facility_case])
     postprocess(result, {:message => filters[:message], :facility=> filters[:facility], :message_case_sensitive => filters[:message_case], :facility_case_sensitive => filters[:facility_case]})
   end
+  
+  
+  
+  
+  
+  
 
   def self.total_count
     # search with size 0 instead of count because of this issue: https://github.com/karmi/tire/issues/100
@@ -287,18 +396,11 @@ end
   def self.postprocess(x, options = {})
     return nil if x.nil?
     
-    message_substring = options[:message]
+    message_substring = options[:message] || ""
     message_case_sensitive = options[:message_case_sensitive]
-    facility_substring = options[:facility]
+    facility_substring = options[:facility] || ""
     facility_case_sensitive = options[:facility_case_sensitive]
-    
-    Juggernaut.publish("message_substring", message_substring)
-    Juggernaut.publish("message_case_sensitive", message_case_sensitive)
-    Juggernaut.publish("message_case_sensitive_type", message_case_sensitive.class)
-    Juggernaut.publish("facility_substring", facility_substring)
-    Juggernaut.publish("facility_case_sensitive", facility_case_sensitive)
-    Juggernaut.publish("facility_case_sensitive_type", facility_case_sensitive.class)
-    
+
     # Remove elements if they dont have our message/facility as substring
     # See http://stackoverflow.com/questions/3260686/how-can-i-use-arraydelete-while-iterating-over-the-array
     x.delete_if do |document|
@@ -327,7 +429,6 @@ end
       skip_message
     end   
         
-    Juggernaut.publish("result - postprocess", x.size)
     return x
   end
 
