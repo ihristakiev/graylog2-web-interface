@@ -141,7 +141,7 @@ end
     return result
   end
 
-  def self.all_by_quickfilter(filters, page = 1, opts = {}, last_poll_time = 0, extra_options = {}, less_than)
+  def self.all_by_quickfilter(filters, page = 1, opts = {}, last_poll_time = 0, extra_options = {}, less_than = Time.now.utc.to_f)
     r = search pagination_options(page).merge(@default_query_options).merge(extra_options) do
       query do
         boolean do
