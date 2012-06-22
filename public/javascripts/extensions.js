@@ -48,4 +48,4 @@ Date.parseUTC = function(str) {
                     parseInt(str.substr(11, 2), 10),
 	                parseInt(str.substr(14, 2), 10),
 	                parseInt(str.substr(17), 10));
-}
+};
