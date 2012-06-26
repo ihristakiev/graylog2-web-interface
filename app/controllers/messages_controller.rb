@@ -210,7 +210,10 @@ class MessagesController < ApplicationController
           
           # Do not use pagination since we are polling
           if !@@thread_filters[login].nil?   
-            result = MessageGateway.all_by_quickfilter_since(MessagesController.getFilter(login), {}, @@last_message_created_at[login]) rescue nil
+            # Remove any time constraints in filter
+            filterCopy = Hash[@@thread_filters[login]]   # Deep copy of filter
+            filterCopy[:to] = nil
+            result = MessageGateway.all_by_quickfilter_since(filterCopy, {}, @@last_message_created_at[login]) rescue nil
           else
             result = MessageGateway.all_since(@@last_message_created_at[login]) rescue nil
           end
