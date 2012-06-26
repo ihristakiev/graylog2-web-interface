@@ -52,8 +52,8 @@ class MessageGateway
   @index = Tire.index(INDEX_NAME)
   @default_query_options = { :sort => "created_at desc" }
 
-  def self.all_paginated(page = 1, last_poll_time = 0, less_than = Time.now.utc.to_i)
-    r = search(pagination_options(page).merge(@default_query_options)) do
+  def self.all_paginated(page = 1, last_poll_time = 0, less_than = Time.now.utc.to_i, extra_options = {})
+    r = search pagination_options(page).merge(@default_query_options).merge(extra_options) do
       query do
         boolean do
           must { range(:created_at, :gt => last_poll_time, :lt => less_than) }

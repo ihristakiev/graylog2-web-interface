@@ -14,9 +14,12 @@ class MessagesController < ApplicationController
   
   # XXX ELASTIC clean up triple-duplicated quickfilter shit
   def do_scoping
+    Juggernaut.publish("scoping1", "1")
+    # AJAX requests shouldn't do prequest filtering/data-retrieval
+    return if params[:applyFilter] || params[:onlyData] || params[:jumpUp] || params[:login]
+    
     if params[:host_id]
       @scoping = :host
-      block_access_for_non_admins
 
       @host = Host.find(:first, :conditions => {:host=> params[:host_id]})
       if params[:filters].blank?
@@ -33,7 +36,6 @@ class MessagesController < ApplicationController
       @is_favorited = current_user.favorite_streams.include?(params[:stream_id])
 
       # Check streams for reader.
-      block_access_for_non_admins if !@stream.accessable_for_user?(current_user)
       
       if params[:filters].blank?
         @messages = MessageGateway.all_of_stream_paginated(@stream.id, params[:page], 0)
@@ -46,14 +48,15 @@ class MessagesController < ApplicationController
       end
     else
       @scoping = :messages
-      session[:time_of_last_request] ||= Time.now.utc.to_i 
 
       if params[:filters].blank?
         @messages = MessageGateway.all_paginated(params[:page], 0)
+        Juggernaut.publish("scoping2", "2")
         @total_count = @messages.total_result_count
       else
         @additional_filters = Quickfilter.extract_additional_fields_from_request(params[:filters])
         @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page])
+        Juggernaut.publish("scoping3", "3")
         @quickfilter_result_count = @messages.total_result_count
         @total_count = MessageGateway.total_count # XXX ELASTIC Possibly read cached from first all_paginated result?!
       end
@@ -65,19 +68,12 @@ class MessagesController < ApplicationController
       @quickfilter_result_count = @messages.total_result_count
   end
 
-  # Not possible to do this via before_filter because of scope decision by params hash
-  def block_access_for_non_admins
-    if current_user.role != "admin"
-      flash[:error] = "You have no access rights for this section."
-      redirect_to :controller => "streams", :action => "index"
-    end
-  end
-
   public
   def index
     @has_sidebar = true
     @load_flot = true
     @use_backtotop = false
+    Juggernaut.publish("index", "1")
     
     ObserversController.start
 
@@ -85,11 +81,13 @@ class MessagesController < ApplicationController
       @last_version_check = current_user.last_version_check
     end
     
-    if params[:onlyData]
+    if params[:onlyData]      
       if !params[:filters].nil?
         @messages = MessageGateway.all_by_quickfilter(params[:filters], params[:page], {}, 0, {}, session[:time_of_last_request])
+        Juggernaut.publish("index", "2.1")
       else
         @messages = MessageGateway.all_paginated(params[:page], 0, session[:time_of_last_request])
+        Juggernaut.publish("index", "2.2")
       end
       render :js => @messages.to_json
     end     
@@ -98,20 +96,27 @@ class MessagesController < ApplicationController
       session[:time_of_last_request] = Time.now.utc.to_i
       MessagesController.applyFilter(params[:login], params[:filters])
       @messages = MessageGateway.all_by_quickfilter(params[:filters], 1, {}, 0) rescue nil
+      Juggernaut.publish("index", "2.3")
       render :js => @messages.to_json
     end
     
     
-    if params[:jumpUp] && params[:login]   
+    if params[:jumpUp] && params[:login]  
+     
       login = params[:login]
       if params[:jumpUp] == "true"
+          Juggernaut.publish("index", params[:latest_timestamp])
+          latest_timestamp = DateTime::parse(params[:latest_timestamp]).to_time.utc.to_i unless params[:latest_timestamp] == "0"
+          latest_timestamp ||= Time.now.utc.to_i
+  
           old_filter = @@thread_filters[login]
           if !old_filter.nil?
             new_filter = Hash[old_filter] # Creates new object
             new_filter.delete(:to)
             new_filter[:from] = old_filter[:to]
             new_filter[:to] = Time.now.utc.to_s
-            dummy_messages = MessageGateway.all_by_quickfilter(new_filter, 1, {}, 0, { :sort => "created_at asc"})
+            dummy_messages = MessageGateway.all_by_quickfilter(new_filter, 1, {}, latest_timestamp, { :sort => "created_at asc"})
+            Juggernaut.publish("index", "2.4")
             if !dummy_messages.empty?
               new_to = dummy_messages[dummy_messages.size - 1].created_at + 1 # All of this was to get this value
               render :text => new_to
@@ -119,17 +124,26 @@ class MessagesController < ApplicationController
               render :text => Time.now.utc.to_time.to_i
             end
           else
-              render :text => "0"
+            dummy_messages = MessageGateway.all_paginated(1, latest_timestamp, Time.now.utc.to_i, { :sort => "created_at asc"}) rescue nil
+            Juggernaut.publish("index", "2.5")
+            if !dummy_messages.empty?
+              new_to = dummy_messages[dummy_messages.size - 1].created_at + 1 # All of this was to get this value
+              render :text => new_to
+            else
+              render :text => "0"              
+            end            
           end
       else
         # This clears the client's message table, so reset the timestamp pointer
         session[:time_of_last_request] = Time.now.utc.to_i
         
         if !@@thread_filters[login].nil? 
+          Juggernaut.publish("index", "3.1")
           result = MessageGateway.all_by_quickfilter(@@thread_filters[login].merge({:to => Time.at(params[:to].to_i).utc.to_s}), params[:page], {}, 0, {}, session[:time_of_last_request])
           render :js => result.to_json
         else
-          result = MessageGateway.all_paginated(params[:page], session[:time_of_last_request]) rescue nil
+          Juggernaut.publish("index", "3.2")
+          result = MessageGateway.all_paginated(params[:page], 0, Time.at(params[:to].to_i).utc.to_i) rescue nil
           render :js => result.to_json
         end         
       end
@@ -150,11 +164,6 @@ class MessagesController < ApplicationController
     
     @message = MessageGateway.retrieve_by_id(params[:id])
     @terms = MessageGateway.analyze(@message.message)
-
-    unless @message.accessable_for_user?(current_user)
-      block_access_for_non_admins
-    end
-
     @comments = Messagecomment.all_matched(@message)
         
     if params[:partial]

@@ -431,6 +431,9 @@ $(document).ready(function(){
 
      		 // Refresh links to messages
      	     bindMessageSidebarClicks();
+     	     
+     	     // Stop live-view
+     	     $(".toggle-liveview").click();
        	});
     	
     	// prevent the click on the link from propagating
@@ -468,15 +471,18 @@ $(document).ready(function(){
     var next_scroll_exists= true;
     
     $(window).scroll(function() {
-    	if($(window).scrollTop() + $(window).height() == $(document).height()) {
+    	if($(window).scrollTop() + $(window).height() >= $(document).height() - 1) {
 			href = $(".next-page").attr("href");
 		    if (href === undefined) return;
+			if ($("#gln").is(":visible")) return;
 			if (!next_scroll_exists)
 			{		
 				// Modify request for even further historical data
 				///.*from.{0,5}=(.*)&filters.{0,5}host.*&filters.{0,5}to.{0,5}=(.*)&page.*$/.exec($(".next-page").attr("href"))
 				return;
-			}    		
+			}
+			
+	        $("#gln").show();
 			// Bottom reached, do AJAX
 			$.get(href + "&onlyData=true", function(data) {
 					data = JSON.parse(data);
@@ -499,7 +505,8 @@ $(document).ready(function(){
 	
 				   // Refresh links to messages
 				   bindMessageSidebarClicks();
-			});	
+				   $("#gln").hide();
+			}).onerror = function() { $("#gln").hide(); };	
 	   }
     });
     
@@ -522,7 +529,8 @@ $(document).ready(function(){
 					       "&filters[severity]=" + severity +
 					       "&filters[severity_above]=" + severity_above +
 					       "&login=" + login_name ;
-    	
+
+        $("#gln").show();
     	$.get(href + "&applyFilter=true&page=1", 
     		 function(data){
     		 // Clear old table
@@ -539,8 +547,9 @@ $(document).ready(function(){
     		 $(".next-page").attr("href", href + "&page=2");  
     		 
 			 // Refresh links to messages
-		     bindMessageSidebarClicks();  
-    	});
+		     bindMessageSidebarClicks();
+		     $("#gln").hide();
+    	}).onerror = function(jqXHR, textStatus) { $("#gln").hide(); };	
 
     	// prevent the click on the link from propagating
     	return false;
@@ -548,12 +557,30 @@ $(document).ready(function(){
     
     // Jump Up and Jump Down buttons
     $(".jump_up").bind("click", function(){
-    	$.get("/messages?login=" + login_name + "&jumpUp=true", function(data){
+    	
+	    // Do nothing if we are in 'live-view' mode
+	    if (subscribed == true) return;
+	    
+	    firstRow = $("#messages-tbody").find("tr")[0];
+	    if (firstRow === undefined)
+    	{
+    	   latest_timestamp = 0;
+    	}
+	    else
+    	{
+	    	latest_timestamp = firstRow.children[0].innerHTML.replace( new RegExp("<span.*>(.*)</span>"),"$1");
+    	}
+	    
+    	$.get("/messages?login=" + login_name + 
+    			       "&jumpUp=true" +
+  				       "&latest_timestamp=" + latest_timestamp
+    			
+    			    , function(data){
 					new_to = parseFloat(data); // String-> Float
 					if (new_to == 0) return;
 					href = "/messages?login=" + login_name +
 							        "&to=" + new_to;
-					ajax_helper(data, href);
+					ajax_helper(href);
     	});
     	
     	return false;
@@ -562,13 +589,19 @@ $(document).ready(function(){
     $(".jump_down").bind("click", function(){    	
 		href = $(".next-page").attr("href");
 	    if (href === undefined) return;
+	    
+
+	    // Stop server-push if we are in 'live-view' mode
+	    if (subscribed == true) $(".toggle-liveview").click();
+	    
 //		if (!next_exists)
 //		{		
 //			// Modify request for even further historical data
 //			///.*from.{0,5}=(.*)&filters.{0,5}host.*&filters.{0,5}to.{0,5}=(.*)&page.*$/.exec($(".next-page").attr("href"))
 //		}    		
 		
-		$.get(href + "&onlyData=true", function(data) {
+		$.get(href + "&onlyData=true"
+		      , function(data) {
 			data = JSON.parse(data);
 			if (data.length == 0) {
 				return; // stop if no data returned
@@ -638,7 +671,7 @@ function syslog_level_to_human(level) {
 	}
 };
 
-function ajax_helper(newdata, href) {
+function ajax_helper(href) {
 	$.get( href + "&page=1" + "&jumpUp=false",    						
 			function(data1){
        		 // Clear old table
@@ -663,7 +696,6 @@ function buildHostCssId(id) {
 };
 
 function bindMessageSidebarClicks() {
-  $(".message-row").unbind("click");
   $(".message-row").bind("click", function() {
 	row = $(this);
     already_selected = row.hasClass("isSelected");
@@ -687,12 +719,10 @@ function bindMessageSidebarClicks() {
 	      // Show sidebar if hidden.
 	      if (!$("#main-right").is(":visible")) {
 	          $("#main-right").show();
-	      }
-
-	      $("#gln").hide();
+	      }	      
 	      
-
-	    });
+	      $("#gln").hide(); 
+    	}).onerror = function(jqXHR, textStatus) { $("#gln").hide(); };	
     	
 	}
     else
