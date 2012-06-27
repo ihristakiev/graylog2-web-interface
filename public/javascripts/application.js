@@ -500,7 +500,7 @@ $(document).ready(function(){
 					// update link to next page
 				   href = $(".next-page").attr("href");
 				   if (href === undefined) return;
-				   page = parseInt(/.page=(\d)+.*/g.exec(href)[1]); // get page number (and convert it from String-> int)
+				   page = parseInt(/.page=(\d+).*/g.exec(href)[1]); // get page number (and convert it from String-> int)
 				   $(".next-page").attr("href", href.replace(new RegExp("page="+page), "page=" + (page+1)) );				   
 	
 				   // Refresh links to messages
@@ -616,7 +616,7 @@ $(document).ready(function(){
 			}
 			
 			// update link to next page
-		   page = parseInt(/.page=(\d)+.*/g.exec(href)[1]); // String-> int
+		   page = parseInt(/.page=(\d+).*/g.exec(href)[1]); // String-> int
 		   $(".next-page").attr("href", href.replace(new RegExp("page="+page), "page=" + (page+1)) );				   
 
 		   // Refresh links to messages
@@ -690,13 +690,18 @@ function ajax_helper(href) {
      	    bindMessageSidebarClicks();
 	});
 };
-    
+   
 function buildHostCssId(id) {
   return "visuals-spread-hosts-" + id.replace(/=/g, '');
 };
 
 function bindMessageSidebarClicks() {
-  $(".message-row").bind("click", function() {
+  // Use a named function here to avoid multiple click handlers being fired per click.
+  // http://stackoverflow.com/questions/6682434/jquery-multiple-binds
+  $(".message-row").bind("click", click_handler);
+};
+
+function click_handler() {
 	row = $(this);
     already_selected = row.hasClass("isSelected");
     target = relative_url_root + "/messages/" + row.attr("id") + "?partial=true";
@@ -737,8 +742,6 @@ function bindMessageSidebarClicks() {
     // Prevent event bubbling
     // http://stackoverflow.com/questions/512010/why-does-my-jquery-alert-show-twice
     return false;
-    
-  });
 };
 
 // srsly, javascript... - http://stackoverflow.com/questions/1219860/javascript-jquery-html-encoding
